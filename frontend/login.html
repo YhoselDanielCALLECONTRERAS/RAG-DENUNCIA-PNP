@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Sistema de Autenticación — SistemaRAG PNP · Denuncias Patrimoniales" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Acceso Seguro · SistemaRAG PNP</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles/main.css" />
+  <link rel="stylesheet" href="styles/v2-additions.css" />
+</head>
+<body class="login-body">
+
+  <!-- ══════════════ PARTÍCULAS DE FONDO ══════════════ -->
+  <div class="login-bg" aria-hidden="true">
+    <div class="login-bg__grid"></div>
+    <div class="login-bg__gradient-1"></div>
+    <div class="login-bg__gradient-2"></div>
+    <div class="login-bg__orb login-bg__orb--1"></div>
+    <div class="login-bg__orb login-bg__orb--2"></div>
+  </div>
+
+  <!-- ══════════════ CARD PRINCIPAL ══════════════ -->
+  <main class="login-wrapper" role="main">
+    <div class="login-card" id="login-card">
+
+      <!-- ── Logo y Encabezado ── -->
+      <div class="login-card__header">
+        <div class="login-logo" aria-hidden="true">
+          <div class="login-logo__shield">
+            <svg width="56" height="64" viewBox="0 0 56 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M28 2L4 12V32C4 46 14 58 28 62C42 58 52 46 52 32V12L28 2Z" fill="url(#shield-grad)" stroke="rgba(255,255,255,0.3)" stroke-width="1.5"/>
+              <path d="M19 32l6 6 12-12" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+              <defs>
+                <linearGradient id="shield-grad" x1="28" y1="2" x2="28" y2="62" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stop-color="#1A5DA8"/>
+                  <stop offset="100%" stop-color="#0A3D7C"/>
+                </linearGradient>
+              </defs>
+            </svg>
+          </div>
+          <div class="login-logo__badge-glow" aria-hidden="true"></div>
+        </div>
+
+        <div class="login-card__title-group">
+          <div class="login-card__system-label">POLICÍA NACIONAL DEL PERÚ</div>
+          <h1 class="login-card__title">SistemaRAG</h1>
+          <p class="login-card__subtitle">Plataforma de Denuncias Patrimoniales</p>
+        </div>
+
+        <!-- Línea divisora con badge de seguridad -->
+        <div class="login-security-badge" aria-label="Conexión segura">
+          <div class="login-security-badge__dot" aria-hidden="true"></div>
+          <span>Acceso Restringido — Personal Autorizado</span>
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+            <rect x="2" y="5" width="8" height="6" rx="1" stroke="#06B6D4" stroke-width="1.2"/>
+            <path d="M4 5V3.5a2 2 0 014 0V5" stroke="#06B6D4" stroke-width="1.2" stroke-linecap="round"/>
+          </svg>
+        </div>
+      </div>
+
+      <!-- ── Formulario de Login ── -->
+      <form class="login-form" id="login-form" novalidate autocomplete="off">
+
+        <!-- Campo Usuario -->
+        <div class="login-field" id="field-username">
+          <label class="login-field__label" for="username">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+              <circle cx="7" cy="5" r="3" stroke="currentColor" stroke-width="1.3"/>
+              <path d="M1 12c0-3 2.7-5 6-5s6 2 6 5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+            </svg>
+            Número de Usuario / CIP
+          </label>
+          <div class="login-field__input-wrapper">
+            <input
+              type="text"
+              id="username"
+              name="username"
+              class="login-field__input"
+              value="operador"
+              placeholder="ej. operador"
+              autocomplete="username"
+              autocorrect="off"
+              autocapitalize="none"
+              spellcheck="false"
+              aria-required="true"
+              aria-describedby="username-hint"
+            />
+            <div class="login-field__indicator" aria-hidden="true"></div>
+          </div>
+          <span class="login-field__hint" id="username-hint" aria-live="polite"></span>
+        </div>
+
+        <!-- Campo Contraseña -->
+        <div class="login-field" id="field-password">
+          <label class="login-field__label" for="password">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+              <rect x="2" y="6" width="10" height="7" rx="1.5" stroke="currentColor" stroke-width="1.3"/>
+              <path d="M5 6V4a2 2 0 014 0v2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+            </svg>
+            Contraseña
+          </label>
+          <div class="login-field__input-wrapper">
+            <input
+              type="password"
+              id="password"
+              name="password"
+              class="login-field__input"
+              value="pnp2026"
+              placeholder="••••••••"
+              autocomplete="current-password"
+              aria-required="true"
+              aria-describedby="password-hint"
+            />
+            <button
+              type="button"
+              class="login-field__toggle-password"
+              id="toggle-password"
+              aria-label="Mostrar contraseña"
+              title="Mostrar/ocultar contraseña"
+            >
+              <svg class="eye-open" width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path d="M1 8s2.5-5 7-5 7 5 7 5-2.5 5-7 5-7-5-7-5z" stroke="currentColor" stroke-width="1.3"/>
+                <circle cx="8" cy="8" r="2" stroke="currentColor" stroke-width="1.3"/>
+              </svg>
+              <svg class="eye-closed" width="16" height="16" viewBox="0 0 16 16" fill="none" hidden>
+                <path d="M2 2l12 12M6.5 6.6A2 2 0 0010 9.5M4.1 4.2C2.4 5.3 1 8 1 8s2.5 5 7 5c1.5 0 2.9-.5 4-1.2M6 3.2A6.5 6.5 0 0115 8s-.7 1.5-1.9 2.7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+              </svg>
+            </button>
+            <div class="login-field__indicator" aria-hidden="true"></div>
+          </div>
+          <span class="login-field__hint" id="password-hint" aria-live="polite"></span>
+        </div>
+
+        <!-- Error global -->
+        <div class="login-error" id="login-error" role="alert" aria-live="assertive" hidden>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <circle cx="8" cy="8" r="7" stroke="#EF4444" stroke-width="1.3"/>
+            <path d="M8 5v3.5M8 10.5v.5" stroke="#EF4444" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+          <span id="login-error-text"></span>
+        </div>
+
+        <!-- Botón de Login -->
+        <button
+          type="submit"
+          class="login-btn"
+          id="login-btn"
+          aria-label="Iniciar turno en SistemaRAG PNP"
+        >
+          <span class="login-btn__text" id="login-btn-text">Iniciar Turno</span>
+          <span class="login-btn__spinner" id="login-btn-spinner" aria-hidden="true" hidden>
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" class="spin">
+              <circle cx="10" cy="10" r="8" stroke="rgba(255,255,255,0.3)" stroke-width="2"/>
+              <path d="M10 2a8 8 0 018 8" stroke="white" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </span>
+          <svg class="login-btn__arrow" width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true" id="login-btn-arrow">
+            <path d="M4 9h10M10 5l4 4-4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+
+        <!-- Usuarios demo -->
+        <div class="login-demo-hint">
+          <span class="login-demo-hint__label">Cuentas demo disponibles:</span>
+          <div class="login-demo-hint__accounts">
+            <button type="button" class="demo-account-btn" data-user="operador" data-pass="pnp2026" id="demo-btn-0">
+              <span class="demo-account-btn__rank">Suboficial</span>
+              <span class="demo-account-btn__user">operador / pnp2026</span>
+            </button>
+            <button type="button" class="demo-account-btn" data-user="investigador" data-pass="invest2026" id="demo-btn-1">
+              <span class="demo-account-btn__rank">Técnico</span>
+              <span class="demo-account-btn__user">investigador / invest2026</span>
+            </button>
+            <button type="button" class="demo-account-btn" data-user="admin" data-pass="admin123" id="demo-btn-2">
+              <span class="demo-account-btn__rank">Comandante</span>
+              <span class="demo-account-btn__user">admin / admin123</span>
+            </button>
+          </div>
+        </div>
+
+      </form>
+
+      <!-- ── Footer del card ── -->
+      <div class="login-card__footer">
+        <div class="login-card__footer-badge">
+          <div class="login-card__footer-dot login-card__footer-dot--green" aria-hidden="true"></div>
+          <span>Sistema verificado · Tesis Ingeniería 2026</span>
+        </div>
+        <span class="login-card__footer-version">v2.0.0</span>
+      </div>
+
+    </div><!-- /login-card -->
+  </main>
+
+  <!-- Toast de notificaciones -->
+  <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+
+  <script src="js/auth.js?v=2.4"></script>
+</body>
+</html>

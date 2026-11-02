@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: sistemarag-backend
+    runtime: docker
+    rootDir: backend
+    dockerfilePath: Dockerfile
+    plan: free
+    region: oregon
+    healthCheckPath: /api/v1/health
+    autoDeploy: true
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: SECRET_KEY
+        generateValue: true
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: LLM_MODEL
+        value: gpt-4o-mini
+      - key: LLM_TEMPERATURE
+        value: "0.1"
+      - key: ALLOWED_ORIGINS
+        value: '["*"]'
+

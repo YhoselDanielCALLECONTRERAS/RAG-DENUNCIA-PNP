@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Plataforma LLM+RAG para categorización de denuncias por delitos contra el patrimonio - PNP Perú 2026" />
+  <meta name="keywords" content="RAG, LLM, denuncia, patrimonio, código penal peruano, IA jurídica, PNP" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Dashboard · SistemaRAG PNP</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles/main.css" />
+  <link rel="stylesheet" href="styles/v2-additions.css" />
+</head>
+<body>
+
+  <!-- ══════════════════════════════ NAVBAR ══════════════════════════════ -->
+  <nav class="navbar" role="navigation" aria-label="Navegación principal">
+    <div class="navbar__brand">
+      <div class="navbar__logo-mark" aria-hidden="true">
+        <svg width="30" height="30" viewBox="0 0 30 30" fill="none">
+          <path d="M15 2L3 7.5V16C3 22.5 8 27.5 15 30C22 27.5 27 22.5 27 16V7.5L15 2Z" fill="url(#nav-shield-grad)" opacity="0.9"/>
+          <path d="M10 15.5l3.5 3.5 6.5-7" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          <defs>
+            <linearGradient id="nav-shield-grad" x1="15" y1="2" x2="15" y2="30" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stop-color="#2176C4"/>
+              <stop offset="100%" stop-color="#0A3D7C"/>
+            </linearGradient>
+          </defs>
+        </svg>
+      </div>
+      <div class="navbar__title-group">
+        <span class="navbar__title">SistemaRAG</span>
+        <span class="navbar__subtitle">Denuncias Patrimoniales · PNP</span>
+      </div>
+    </div>
+
+    <div class="navbar__meta">
+      <div class="status-badge" id="status-indicator" aria-live="polite">
+        <span class="status-badge__dot status-badge__dot--checking" aria-hidden="true"></span>
+        <span class="status-badge__text">Verificando...</span>
+      </div>
+      <div class="navbar__meta-divider" aria-hidden="true"></div>
+      <div class="navbar__info">
+        <span class="navbar__info-label">Modelo</span>
+        <span class="navbar__info-value" id="nav-model">GPT-4o-mini</span>
+      </div>
+      <div class="navbar__info">
+        <span class="navbar__info-label">Corpus</span>
+        <span class="navbar__info-value">Arts. 185–189</span>
+      </div>
+
+      <!-- ── Barra de usuario autenticado ── -->
+      <div class="navbar__meta-divider" aria-hidden="true"></div>
+      <div class="navbar__user" id="navbar-user" aria-label="Usuario autenticado">
+        <div class="navbar__user-avatar" id="user-avatar-initials" aria-hidden="true">--</div>
+        <div class="navbar__user-info">
+          <span class="navbar__user-name" id="user-full-name">Cargando...</span>
+          <span class="navbar__user-rank" id="user-rank"></span>
+        </div>
+        <button
+          class="navbar__logout-btn"
+          id="btn-logout"
+          type="button"
+          title="Cerrar turno"
+          aria-label="Cerrar turno y salir del sistema"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M6 14H3a1 1 0 01-1-1V3a1 1 0 011-1h3M10.5 11l3-3-3-3M13.5 8H6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ══════════════════════════ MAIN LAYOUT ════════════════════════════ -->
+  <main class="workspace" role="main">
+
+    <!-- ── PANEL IZQUIERDO: Entrada ──────────────────────────────────── -->
+    <section class="panel panel--input" aria-labelledby="panel-input-title">
+      <div class="panel__header">
+        <div class="panel__header-left">
+          <div class="panel__icon panel__icon--input" aria-hidden="true">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M2 3h12M2 6h8M2 9h10M2 12h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <h2 class="panel__title" id="panel-input-title">Relato Informal</h2>
+        </div>
+        <div class="panel__badges">
+          <span class="badge badge--neutral">Lenguaje coloquial</span>
+          <span class="badge badge--neutral" id="char-count-badge">0 / 2000</span>
+        </div>
+      </div>
+
+      <div class="panel__body">
+
+        <!-- ── SECCIÓN 1: DATOS GENERALES DEL DENUNCIANTE (FILIACIÓN PNP) ── -->
+        <div class="denunciante-box" id="denunciante-box">
+          <div class="denunciante-box__header">
+            <span class="denunciante-box__title">
+              <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+                <path d="M8 8a3 3 0 100-6 3 3 0 000 6zM2 14a6 6 0 0112 0H2z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+              I. Filiación del Denunciante / Agraviado
+            </span>
+            <div class="denunciante-box__actions">
+              <button class="btn-sample-data" id="btn-sample-denunciante" type="button" title="Cargar datos de prueba para agilizar la evaluación">
+                <span>🎲 Datos de Prueba</span>
+              </button>
+            </div>
+          </div>
+          <div class="denunciante-form" id="denunciante-form">
+            <div class="form-grid-2">
+              <div class="field-group">
+                <label for="denunciante-nombre">Nombres y Apellidos *</label>
+                <input class="field-input" id="denunciante-nombre" type="text" placeholder="Ej. Carlos Alberto Quispe Huamán" value="Carlos Alberto Quispe Huamán" required />
+              </div>
+              <div class="form-grid-2">
+                <div class="field-group">
+                  <label for="denunciante-doc-tipo">Tipo Doc.</label>
+                  <select class="field-select" id="denunciante-doc-tipo">
+                    <option value="DNI" selected>DNI</option>
+                    <option value="Carné de Extranjería">C.E.</option>
+                    <option value="Pasaporte">Pasaporte</option>
+                  </select>
+                </div>
+                <div class="field-group">
+                  <label for="denunciante-dni">N° Documento *</label>
+                  <input class="field-input" id="denunciante-dni" type="text" placeholder="8 dígitos" maxlength="12" value="47891234" required />
+                </div>
+              </div>
+            </div>
+
+            <div class="form-grid-3">
+              <div class="field-group">
+                <label for="denunciante-grado-instruccion">Educación / Grado Instrucción *</label>
+                <select class="field-select" id="denunciante-grado-instruccion">
+                  <option value="Sin instrucción">Sin instrucción</option>
+                  <option value="Primaria completa">Primaria completa</option>
+                  <option value="Secundaria completa">Secundaria completa</option>
+                  <option value="Superior Técnica">Superior Técnica</option>
+                  <option value="Superior Universitaria" selected>Superior Universitaria</option>
+                  <option value="Posgrado">Posgrado</option>
+                </select>
+              </div>
+              <div class="field-group">
+                <label for="denunciante-estado-civil">Estado Civil</label>
+                <select class="field-select" id="denunciante-estado-civil">
+                  <option value="Soltero(a)" selected>Soltero(a)</option>
+                  <option value="Casado(a)">Casado(a)</option>
+                  <option value="Conviviente">Conviviente</option>
+                  <option value="Divorciado(a)">Divorciado(a)</option>
+                  <option value="Viudo(a)">Viudo(a)</option>
+                </select>
+              </div>
+              <div class="form-grid-2">
+                <div class="field-group">
+                  <label for="denunciante-edad">Edad</label>
+                  <input class="field-input" id="denunciante-edad" type="number" min="18" max="99" value="34" />
+                </div>
+                <div class="field-group">
+                  <label for="denunciante-sexo">Sexo</label>
+                  <select class="field-select" id="denunciante-sexo">
+                    <option value="Masculino" selected>M</option>
+                    <option value="Femenino">F</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-grid-2">
+              <div class="field-group">
+                <label for="denunciante-domicilio">Dónde vive / Domicilio Real *</label>
+                <input class="field-input" id="denunciante-domicilio" type="text" placeholder="Ej. Av. Brasil 1450 Dpto. 501, Jesús María, Lima" value="Av. Brasil 1450 Dpto. 501, Jesús María, Lima" required />
+              </div>
+              <div class="form-grid-2">
+                <div class="field-group">
+                  <label for="denunciante-ocupacion">Ocupación</label>
+                  <input class="field-input" id="denunciante-ocupacion" type="text" placeholder="Ej. Ingeniero de Sistemas" value="Ingeniero de Sistemas" />
+                </div>
+                <div class="field-group">
+                  <label for="denunciante-telefono">Teléfono / Celular</label>
+                  <input class="field-input" id="denunciante-telefono" type="tel" placeholder="Ej. 987654321" value="987654321" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="font-size:11px; font-weight:700; color:var(--color-primary); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px; display:flex; align-items:center; gap:6px;">
+          <span>🎙️ II. Narración del Hecho Denunciado</span>
+        </div>
+
+        <!-- ── BOTÓN MICRÓFONO (DESTACADO) ─────────────────────────────── -->
+        <div class="mic-section" id="mic-section">
+          <button
+            class="mic-btn"
+            id="mic-btn"
+            type="button"
+            aria-label="Iniciar grabación de voz"
+            aria-pressed="false"
+            title="Mantén presionado o haz clic para grabar"
+          >
+            <!-- Ondas de audio animadas (visibles al grabar) -->
+            <div class="mic-btn__waves" aria-hidden="true">
+              <span class="mic-btn__wave mic-btn__wave--1"></span>
+              <span class="mic-btn__wave mic-btn__wave--2"></span>
+              <span class="mic-btn__wave mic-btn__wave--3"></span>
+            </div>
+            <!-- Icono del micrófono -->
+            <div class="mic-btn__icon-wrapper">
+              <svg class="mic-btn__icon mic-icon-idle" width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true">
+                <rect x="9" y="2" width="10" height="16" rx="5" stroke="currentColor" stroke-width="2"/>
+                <path d="M5 14a9 9 0 0018 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                <path d="M14 23v3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                <path d="M10 26h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+              <svg class="mic-btn__icon mic-icon-recording" width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true" hidden>
+                <rect x="9" y="2" width="10" height="16" rx="5" fill="currentColor" opacity="0.3"/>
+                <rect x="9" y="2" width="10" height="16" rx="5" stroke="currentColor" stroke-width="2"/>
+                <path d="M5 14a9 9 0 0018 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                <path d="M14 23v3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                <path d="M10 26h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                <circle cx="14" cy="10" r="3" fill="currentColor"/>
+              </svg>
+            </div>
+          </button>
+
+          <div class="mic-status" id="mic-status" aria-live="polite">
+            <span class="mic-status__text" id="mic-status-text">Presionar para dictar el relato</span>
+          </div>
+
+          <!-- Timer de grabación -->
+          <div class="mic-timer" id="mic-timer" hidden aria-live="polite">
+            <div class="mic-timer__dot" aria-hidden="true"></div>
+            <span class="mic-timer__time" id="mic-timer-display">0:00</span>
+            <span class="mic-timer__label">grabando</span>
+          </div>
+
+          <!-- Modo de transcripción -->
+          <div class="mic-mode-toggle">
+            <label class="mic-mode-label" for="mic-mode-select">Modo:</label>
+            <select class="mic-mode-select" id="mic-mode-select" aria-label="Modo de transcripción">
+              <option value="webspeech" selected>🌐 Transcripción en Vivo en Pantalla (Recomendado)</option>
+              <option value="whisper">🎙️ Grabación de Audio (Micrófono Directo / Whisper)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Banner de compatibilidad de dictado por voz -->
+        <div class="browser-notice" id="browser-notice" style="display:flex; align-items:center; gap:8px; background:rgba(37,99,235,0.08); border:1px solid rgba(37,99,235,0.25); border-radius:6px; padding:6px 12px; margin-top:8px; font-size:12px; color:#1e40af;">
+          <span>💡</span>
+          <span><strong>Dictado en tiempo real:</strong> Cada palabra que hable se transcribirá directamente en la caja de texto. Recomendado en <strong>Google Chrome</strong> o <strong>Microsoft Edge</strong>.</span>
+        </div>
+
+        <!-- Separador -->
+        <div class="input-divider" aria-hidden="true">
+          <span class="input-divider__line"></span>
+          <span class="input-divider__text">o escribir manualmente</span>
+          <span class="input-divider__line"></span>
+        </div>
+
+        <!-- Ejemplos rápidos -->
+        <div class="quick-examples">
+          <span class="quick-examples__label">Ejemplos:</span>
+          <button class="quick-examples__btn" data-example="0" type="button" id="example-btn-0">Robo con arma</button>
+          <button class="quick-examples__btn" data-example="1" type="button" id="example-btn-1">Hurto en mercado</button>
+          <button class="quick-examples__btn" data-example="2" type="button" id="example-btn-2">Cogoteo nocturno</button>
+          <button class="quick-examples__btn" data-example="3" type="button" id="example-btn-3">Robo a casa</button>
+        </div>
+
+        <!-- Área de texto principal -->
+        <div class="textarea-wrapper">
+          <textarea
+            id="relato-input"
+            class="relato-textarea"
+            placeholder="Ingrese aquí el relato informal de la denuncia en lenguaje coloquial...
+
+Ejemplo: &quot;Ayer a las 9pm dos sujetos en moto me encañonaron con pistola y me quitaron el celular y la billetera...&quot;"
+            maxlength="2000"
+            aria-label="Relato informal de la denuncia"
+            aria-describedby="relato-help"
+            spellcheck="true"
+          ></textarea>
+          <div class="textarea-overlay" id="textarea-overlay" aria-hidden="true"></div>
+        </div>
+
+        <p class="form-help" id="relato-help">
+          Ingrese el relato en lenguaje natural. El sistema identificará automáticamente
+          el tipo penal según el Código Penal Peruano (Arts. 185, 186, 188, 189).
+        </p>
+
+        <!-- Opciones adicionales -->
+        <div class="options-row">
+          <label class="toggle-option" for="include-context-toggle">
+            <input type="checkbox" id="include-context-toggle" checked />
+            <span class="toggle-option__slider" aria-hidden="true"></span>
+            <span class="toggle-option__label">Mostrar artículos recuperados</span>
+          </label>
+        </div>
+
+        <!-- Botón de análisis -->
+        <button
+          class="btn-analyze"
+          id="btn-analyze"
+          type="button"
+          aria-label="Ejecutar análisis RAG sobre el relato"
+          aria-busy="false"
+        >
+          <span class="btn-analyze__icon" aria-hidden="true" id="btn-icon">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+              <circle cx="9" cy="9" r="7.5" stroke="currentColor" stroke-width="1.5"/>
+              <path d="M6.5 9l2 2 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </span>
+          <span class="btn-analyze__spinner" aria-hidden="true" id="btn-spinner">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" class="spin">
+              <circle cx="9" cy="9" r="7" stroke="currentColor" stroke-width="2" stroke-dasharray="22 22" stroke-linecap="round"/>
+            </svg>
+          </span>
+          <span class="btn-analyze__text" id="btn-text">⚡ Analizar y Generar Acta Oficial PNP</span>
+        </button>
+
+        <!-- Error de validación -->
+        <div class="form-error" id="form-error" role="alert" aria-live="assertive" hidden>
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+            <circle cx="7" cy="7" r="6.5" stroke="currentColor" stroke-width="1.2"/>
+            <path d="M7 4v3.5M7 9.5v.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+          </svg>
+          <span id="form-error-text"></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── PANEL DERECHO: Resultados ─────────────────────────────────── -->
+    <section class="panel panel--output" aria-labelledby="panel-output-title">
+      <div class="panel__header">
+        <div class="panel__header-left">
+          <div class="panel__icon panel__icon--output" aria-hidden="true">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <rect x="2" y="2" width="12" height="12" rx="2" stroke="currentColor" stroke-width="1.5"/>
+              <path d="M5 6h6M5 9h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <h2 class="panel__title" id="panel-output-title">Acta Estructurada</h2>
+        </div>
+        <div class="panel__header-actions">
+          <span class="badge badge--accent" id="request-id-badge" hidden></span>
+          <span class="badge badge--neutral" id="user-badge"></span>
+          <button class="btn-icon" id="btn-print-acta" type="button" title="Imprimir / Guardar en PDF Acta Oficial" aria-label="Imprimir Acta" hidden style="color:#0284c7;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="6 9 6 2 18 2 18 9"></polyline>
+              <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+              <rect x="6" y="14" width="12" height="8"></rect>
+            </svg>
+          </button>
+          <button class="btn-icon" id="btn-copy-acta" type="button" title="Copiar Acta Oficial Completa" aria-label="Copiar Acta" hidden style="color:#10b981;">
+            <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+              <rect x="4" y="4" width="9" height="9" rx="1.5" stroke="currentColor" stroke-width="1.3"/>
+              <path d="M2 11V2h9" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+          <button class="btn-icon" id="btn-copy-json" type="button" title="Copiar JSON" aria-label="Copiar JSON al portapapeles" hidden>
+            <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+              <rect x="4" y="4" width="9" height="9" rx="1.5" stroke="currentColor" stroke-width="1.3"/>
+              <path d="M2 11V2h9" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+          <button class="btn-icon" id="btn-download-json" type="button" title="Descargar JSON" aria-label="Descargar resultado como JSON" hidden>
+            <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+              <path d="M7.5 2v8M4.5 7.5l3 3 3-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M2 12h11" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="panel-tab-bar" id="panel-tab-bar" hidden>
+        <button class="panel-tab-btn active" id="tab-acta-btn" type="button">
+          📜 Acta Oficial de Denuncia (PNP)
+        </button>
+        <button class="panel-tab-btn" id="tab-rag-btn" type="button">
+          🔬 Análisis RAG & Tipificación
+        </button>
+      </div>
+
+      <div class="panel__body" id="output-panel-body">
+
+        <!-- Estado inicial -->
+        <div class="empty-state" id="empty-state">
+          <div class="empty-state__icon" aria-hidden="true">
+            <svg width="52" height="52" viewBox="0 0 52 52" fill="none">
+              <rect width="52" height="52" rx="14" fill="#06B6D4" opacity="0.08"/>
+              <path d="M14 20h24M14 26h18M14 32h20" stroke="#06B6D4" stroke-width="2" stroke-linecap="round"/>
+              <circle cx="39" cy="32" r="7" stroke="#06B6D4" stroke-width="2"/>
+              <path d="M37 32l1.5 1.5 2.5-2.5" stroke="#06B6D4" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <p class="empty-state__title">Aguardando análisis</p>
+          <p class="empty-state__subtitle">
+            Use el micrófono o ingrese el relato y presione<br/>
+            <strong>Ejecutar Análisis RAG</strong> para generar el acta.
+          </p>
+          <div class="empty-state__tips">
+            <div class="tip-item">
+              <span class="tip-item__icon">🎙️</span>
+              <span>Dicte el relato con el botón de micrófono</span>
+            </div>
+            <div class="tip-item">
+              <span class="tip-item__icon">📝</span>
+              <span>O escriba el relato en el panel izquierdo</span>
+            </div>
+            <div class="tip-item">
+              <span class="tip-item__icon">⚡</span>
+              <span>El sistema extrae el tipo penal y entidades en ~1.3s</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Resultado principal -->
+        <div class="result-container" id="result-container" hidden>
+
+          <!-- VISTA 1: ACTA OFICIAL DE RECEPCIÓN DE DENUNCIA PNP -->
+          <div class="acta-view-wrapper" id="acta-view">
+            <div class="acta-sheet" id="acta-sheet-content">
+              <!-- Renderizado dinámico del acta oficial -->
+            </div>
+          </div>
+
+          <!-- VISTA 2: DETALLES TÉCNICOS RAG Y TIPIFICACIÓN -->
+          <div class="rag-view" id="rag-view" hidden>
+
+          <!-- Cabecera con clasificación -->
+          <div class="result-header" id="result-header">
+            <div class="classification-badge" id="classification-badge">
+              <span class="classification-badge__type" id="tipo-penal-display"></span>
+              <span class="classification-badge__article" id="articulo-display"></span>
+            </div>
+            <div class="confidence-meter">
+              <span class="confidence-meter__label">Confianza</span>
+              <div class="confidence-meter__bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" id="confidence-bar">
+                <div class="confidence-meter__fill" id="confidence-fill"></div>
+              </div>
+              <span class="confidence-meter__value" id="confidence-value"></span>
+            </div>
+          </div>
+
+          <!-- Grid de datos extraídos -->
+          <div class="data-grid" id="data-grid"></div>
+
+          <!-- Grounding Span -->
+          <div class="grounding-section" id="grounding-section">
+            <div class="grounding-section__header">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                <path d="M2 4h10M4 7h6M3 10h8" stroke="#06B6D4" stroke-width="1.3" stroke-linecap="round"/>
+              </svg>
+              <span>Grounding Span</span>
+              <span class="grounding-section__tooltip" title="Extracto literal del relato que sustenta la clasificación">?</span>
+            </div>
+            <blockquote class="grounding-quote" id="grounding-text"></blockquote>
+          </div>
+
+          <!-- Documentos normativos recuperados (RAG Context) -->
+          <div class="rag-context" id="rag-context" hidden>
+            <div class="rag-context__header">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                <rect x="2" y="1" width="10" height="12" rx="1.5" stroke="#06B6D4" stroke-width="1.3"/>
+                <path d="M4 5h6M4 8h4" stroke="#06B6D4" stroke-width="1.2" stroke-linecap="round"/>
+              </svg>
+              <span>Marco Normativo Recuperado (RAG)</span>
+              <button class="btn-collapse" id="btn-collapse-rag" type="button" aria-expanded="true" aria-controls="rag-docs-list">
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                  <path d="M3 4.5l3 3 3-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+            </div>
+            <div class="rag-docs-list" id="rag-docs-list"></div>
+          </div>
+
+          <!-- JSON colapsable -->
+          <div class="json-viewer-section">
+            <div class="json-viewer-section__header">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                <rect x="1" y="3" width="12" height="8" rx="1.5" stroke="#06B6D4" stroke-width="1.3"/>
+                <path d="M4 6l-1.5 1L4 8M10 6l1.5 1L10 8M6.5 5.5l1 3" stroke="#06B6D4" stroke-width="1.1" stroke-linecap="round"/>
+              </svg>
+              <span>JSON Estructurado (Acta)</span>
+              <button class="btn-collapse" id="btn-collapse-json" type="button" aria-expanded="false" aria-controls="json-viewer">
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                  <path d="M3 4.5l3 3 3-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+            </div>
+            <div class="json-viewer" id="json-viewer" hidden>
+              <pre class="json-code" id="json-output"></pre>
+            </div>
+          </div>
+
+          </div><!-- /rag-view -->
+        </div><!-- /result-container -->
+      </div><!-- /panel__body -->
+    </section>
+
+  </main><!-- /workspace -->
+
+  <!-- ══════════════════════ MÉTRICAS (FOOTER BAR) ══════════════════════ -->
+  <footer class="metrics-bar" role="contentinfo" aria-label="Métricas del sistema">
+    <div class="metrics-bar__label">
+      <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true">
+        <path d="M2 11L5 7l3 2.5L11 2" stroke="#06B6D4" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span>Métricas Gold Standard (n=40)</span>
+    </div>
+    <div class="metrics-bar__items">
+      <div class="metric-item">
+        <span class="metric-item__label">Accuracy</span>
+        <span class="metric-item__value">92.5%</span>
+      </div>
+      <div class="metrics-bar__divider" aria-hidden="true"></div>
+      <div class="metric-item">
+        <span class="metric-item__label">F1-Score</span>
+        <span class="metric-item__value">0.915</span>
+      </div>
+      <div class="metrics-bar__divider" aria-hidden="true"></div>
+      <div class="metric-item">
+        <span class="metric-item__label">Precision</span>
+        <span class="metric-item__value">0.918</span>
+      </div>
+      <div class="metrics-bar__divider" aria-hidden="true"></div>
+      <div class="metric-item">
+        <span class="metric-item__label">Recall</span>
+        <span class="metric-item__value">0.912</span>
+      </div>
+      <div class="metrics-bar__divider" aria-hidden="true"></div>
+      <div class="metric-item" id="latency-metric">
+        <span class="metric-item__label">Latencia</span>
+        <span class="metric-item__value" id="latency-display">— ms</span>
+      </div>
+    </div>
+    <div class="metrics-bar__right">
+      <span class="metrics-bar__version">v2.0.0 · Tesis PNP 2026</span>
+    </div>
+  </footer>
+
+  <!-- Toast de notificaciones -->
+  <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+
+  <script src="js/auth.js?v=2.4"></script>
+  <script src="js/app.js?v=2.4"></script>
+</body>
+</html>

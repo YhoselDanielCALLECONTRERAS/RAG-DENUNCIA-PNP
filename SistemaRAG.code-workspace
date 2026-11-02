@@ -1,0 +1,161 @@
+{
+  "folders": [
+    {
+      "path": ".",
+      "name": "SistemaRAG · Denuncias Patrimoniales"
+    }
+  ],
+  "settings": {
+    "python.defaultInterpreterPath": "${workspaceFolder}/backend/.venv/Scripts/python.exe",
+    "python.terminal.activateEnvironment": true,
+    "python.linting.enabled": true,
+    "python.linting.pylintEnabled": false,
+    "python.linting.flake8Enabled": false,
+    "editor.formatOnSave": true,
+    "editor.tabSize": 4,
+    "editor.insertSpaces": true,
+    "files.exclude": {
+      "**/__pycache__": true,
+      "**/*.pyc": true,
+      "**/backend/.venv": true,
+      "**/data/chroma_db": true
+    },
+    "editor.rulers": [88],
+    "workbench.colorTheme": "Dark Modern",
+    "terminal.integrated.defaultProfile.windows": "PowerShell"
+  },
+  "extensions": {
+    "recommendations": [
+      "ms-python.python",
+      "ms-python.vscode-pylance",
+      "ms-python.debugpy",
+      "tamasfe.even-better-toml",
+      "redhat.vscode-yaml",
+      "bradlc.vscode-tailwindcss",
+      "esbenp.prettier-vscode",
+      "ms-azuretools.vscode-docker",
+      "humao.rest-client"
+    ]
+  },
+  "launch": {
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "name": "🚀 Backend FastAPI (uvicorn)",
+        "type": "debugpy",
+        "request": "launch",
+        "module": "uvicorn",
+        "args": [
+          "app.main:app",
+          "--reload",
+          "--port", "8000",
+          "--host", "0.0.0.0"
+        ],
+        "cwd": "${workspaceFolder}/backend",
+        "python": "${workspaceFolder}/backend/.venv/Scripts/python.exe",
+        "justMyCode": false,
+        "env": {
+          "PYTHONPATH": "${workspaceFolder}/backend"
+        }
+      },
+      {
+        "name": "🌐 Frontend (servidor estático puerto 5500)",
+        "type": "node",
+        "request": "launch",
+        "runtimeExecutable": "npx",
+        "runtimeArgs": [
+          "-y",
+          "http-server",
+          "${workspaceFolder}/frontend",
+          "-p", "5500",
+          "--cors",
+          "-o"
+        ],
+        "console": "integratedTerminal",
+        "skipFiles": ["<node_internals>/**"]
+      }
+    ],
+    "compounds": [
+      {
+        "name": "🎯 Full Stack (Backend + Frontend)",
+        "configurations": [
+          "🚀 Backend FastAPI (uvicorn)",
+          "🌐 Frontend (servidor estático puerto 5500)"
+        ],
+        "stopAll": true
+      }
+    ]
+  },
+  "tasks": {
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "Instalar dependencias backend",
+        "type": "shell",
+        "command": ".venv\\Scripts\\pip install -r requirements.txt",
+        "options": {
+          "cwd": "${workspaceFolder}/backend"
+        },
+        "group": "build",
+        "presentation": {
+          "reveal": "always",
+          "panel": "dedicated"
+        }
+      },
+      {
+        "label": "Iniciar Backend (FastAPI)",
+        "type": "shell",
+        "command": ".venv\\Scripts\\uvicorn app.main:app --reload --port 8000",
+        "options": {
+          "cwd": "${workspaceFolder}/backend"
+        },
+        "group": {
+          "kind": "build",
+          "isDefault": true
+        },
+        "presentation": {
+          "reveal": "always",
+          "panel": "dedicated",
+          "focus": true
+        },
+        "isBackground": true,
+        "problemMatcher": {
+          "pattern": {
+            "regexp": "."
+          },
+          "background": {
+            "activeOnStart": true,
+            "beginsPattern": ".",
+            "endsPattern": "Application startup complete"
+          }
+        }
+      },
+      {
+        "label": "Iniciar Frontend (http-server)",
+        "type": "shell",
+        "command": "npx -y http-server frontend -p 5500 --cors -o",
+        "options": {
+          "cwd": "${workspaceFolder}"
+        },
+        "group": "build",
+        "presentation": {
+          "reveal": "always",
+          "panel": "dedicated"
+        }
+      },
+      {
+        "label": "Ejecutar Evaluación Gold Standard",
+        "type": "shell",
+        "command": ".venv\\Scripts\\python ..\\scripts\\evaluate_pipeline.py --verbose",
+        "options": {
+          "cwd": "${workspaceFolder}/backend"
+        },
+        "group": "test",
+        "presentation": {
+          "reveal": "always",
+          "panel": "dedicated"
+        }
+      }
+    ]
+  }
+}

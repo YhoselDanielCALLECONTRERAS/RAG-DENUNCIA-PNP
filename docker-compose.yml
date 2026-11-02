@@ -1,0 +1,67 @@
+# ─────────────────────────────────────────────────────────────────────────────
+#  SistemaRAG · Denuncias Patrimoniales
+#  Docker Compose — Orquestación de servicios
+#  Uso: docker-compose up --build
+# ─────────────────────────────────────────────────────────────────────────────
+
+version: '3.9'
+
+services:
+
+  # ── Backend FastAPI ───────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: rag_denuncia_backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - LLM_MODEL=${LLM_MODEL:-gpt-4o-mini}
+      - LLM_TEMPERATURE=${LLM_TEMPERATURE:-0.1}
+      - LLM_MAX_TOKENS=${LLM_MAX_TOKENS:-1024}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-text-embedding-3-small}
+      - CHROMA_PERSIST_DIR=/app/data/chroma_db
+      - CHROMA_COLLECTION_NAME=codigo_penal_peruano
+      - TOP_K_RETRIEVAL=${TOP_K_RETRIEVAL:-3}
+      - SIMILARITY_THRESHOLD=${SIMILARITY_THRESHOLD:-0.35}
+      - DEBUG=${DEBUG:-false}
+      - ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000
+    volumes:
+      - chroma_data:/app/data/chroma_db
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - rag_network
+
+  # ── Frontend (servidor estático nginx) ───────────────────────────────────
+  frontend:
+    image: nginx:alpine
+    container_name: rag_denuncia_frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    volumes:
+      - ./frontend:/usr/share/nginx/html:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - rag_network
+
+# ── Volúmenes persistentes ─────────────────────────────────────────────────
+volumes:
+  chroma_data:
+    driver: local
+
+# ── Red interna ────────────────────────────────────────────────────────────
+networks:
+  rag_network:
+    driver: bridge

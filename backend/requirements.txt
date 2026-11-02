@@ -1,0 +1,34 @@
+# ── Framework Web Asíncrono ──────────────────────────────────────────────────
+fastapi==0.115.4
+uvicorn[standard]==0.32.0
+
+# ── Validación de Datos y Configuración ────────────────────────────────────────
+pydantic==2.10.0
+pydantic-settings==2.6.1
+
+# ── Seguridad y Autenticación Policial JWT ────────────────────────────────────
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+bcrypt>=4.0.0
+python-multipart==0.0.12
+
+# ── Orquestación LLM y RAG ────────────────────────────────────────────────────
+langchain==0.3.7
+langchain-openai==0.2.9
+langchain-core==0.3.19
+langchain-community==0.3.7
+
+# ── Base de Datos Vectorial (FAISS CPU ultra liviano para Cloud Free-Tier) ─────
+faiss-cpu==1.9.0
+
+# ── OpenAI SDK (GPT-4o / Inferencia y Whisper Audio STT) ──────────────────────
+openai==1.55.0
+
+# ── Utilidades HTTP y Resiliencia ─────────────────────────────────────────────
+python-dotenv==1.0.1
+httpx==0.27.2
+tenacity==9.0.0
+
+# ── Métricas y Procesamiento Numérico ─────────────────────────────────────────
+numpy==1.26.4
+scikit-learn==1.5.2
