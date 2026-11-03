@@ -1724,397 +1724,534 @@ function loadSampleComplainantData(silent = false) {
 
 
 
-function renderActaOficialPNP(data, denunciante) {
+// ── Conversor de montos a letras conforme al Manual de Documentación Policial ──
+function numeroALetrasSoles(montoRaw) {
+  if (!montoRaw) return 'A DETERMINARSE CON LA PRESENTACIÓN DE COMPROBANTES DE PAGO O PERITAJE DE VALORIZACIÓN';
+  
+  let val = null;
+  if (typeof montoRaw === 'number') {
+    val = montoRaw;
+  } else {
+    const cleanStr = String(montoRaw).replace(/\s+/g, ' ');
+    // Extraer patrones numéricos monetarios como "S/ 1,200", "400 soles", "S/. 350.00"
+    const m = cleanStr.match(/(?:s\/?\.?|soles?)\s*([\d,.]+)|([\d,.]+)\s*(?:soles?|s\/?\.?)/i);
+    if (m) {
+      const numStr = (m[1] || m[2]).replace(/,/g, '');
+      val = parseFloat(numStr);
+    }
+  }
 
+  if (val === null || isNaN(val) || val <= 0) {
+    return 'A DETERMINARSE CON LA PRESENTACIÓN DE COMPROBANTES DE PAGO O PERITAJE DE VALORIZACIÓN';
+  }
+
+  const unidades = ['', 'UN', 'DOS', 'TRES', 'CUATRO', 'CINCO', 'SEIS', 'SIETE', 'OCHO', 'NUEVE'];
+  const especiales = ['DIEZ', 'ONCE', 'DOCE', 'TRECE', 'CATORCE', 'QUINCE', 'DIECISÉIS', 'DIECISIETE', 'DIECIOCHO', 'DIECINUEVE'];
+  const decenas = ['', 'DIEZ', 'VEINTE', 'TREINTA', 'CUARENTA', 'CINCUENTA', 'SESENTA', 'SETENTA', 'OCHENTA', 'NOVENTA'];
+  const centenas = ['', 'CIENTO', 'DOSCIENTOS', 'TRESCIENTOS', 'CUATROCIENTOS', 'QUINIENTOS', 'SEISCIENTOS', 'SETECIENTOS', 'OCHOCIENTOS', 'NOVECIENTOS'];
+
+  function convertirGrupo(n) {
+    if (n === 100) return 'CIEN';
+    let out = '';
+    const c = Math.floor(n / 100);
+    const d = Math.floor((n % 100) / 10);
+    const u = n % 10;
+    if (c > 0) out += centenas[c] + ' ';
+
+    const resto = n % 100;
+    if (resto >= 10 && resto <= 19) {
+      out += especiales[resto - 10];
+    } else if (resto >= 21 && resto <= 29) {
+      out += 'VEINTI' + unidades[u];
+    } else {
+      if (d > 0) out += decenas[d] + (u > 0 ? ' Y ' : '');
+      if (u > 0) out += unidades[u];
+    }
+    return out.trim();
+  }
+
+  const parteEntera = Math.floor(val);
+  const centavos = Math.round((val - parteEntera) * 100);
+  const centavosStr = String(centavos).padStart(2, '0') + '/100';
+
+  let letras = '';
+  if (parteEntera === 0) {
+    letras = 'CERO';
+  } else if (parteEntera < 1000) {
+    letras = convertirGrupo(parteEntera);
+  } else if (parteEntera < 1000000) {
+    const miles = Math.floor(parteEntera / 1000);
+    const resto = parteEntera % 1000;
+    const milesStr = miles === 1 ? 'MIL' : convertirGrupo(miles) + ' MIL';
+    letras = milesStr + (resto > 0 ? ' ' + convertirGrupo(resto) : '');
+  } else {
+    letras = String(parteEntera);
+  }
+
+  const formatoMoneda = val.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return `${letras.trim()} CON ${centavosStr} SOLES (S/ ${formatoMoneda})`;
+}
+
+// ── Generador de texto plano para copia formal a Word / SIDPOL ────────────────
+function generateActaPlainText(data, denunciante) {
+  if (!data || !data.tabla_denuncia) return '';
+  const tabla = data.tabla_denuncia;
+  const now = new Date();
+  const meses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'setiembre', 'octubre', 'noviembre', 'diciembre'];
+  const diaInicio = String(now.getDate()).padStart(2, '0');
+  const mesInicio = meses[now.getMonth()];
+  const anioInicio = now.getFullYear();
+  const horaInicio = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+  const fechaFin = new Date(now.getTime() + 20 * 60000);
+  const horaFin = String(fechaFin.getHours()).padStart(2, '0') + ':' + String(fechaFin.getMinutes()).padStart(2, '0');
+
+  const user = window.AuthManager?.getUser() || {
+    full_name: 'Martínez Torres, Edwin',
+    rank: 'Suboficial de 1ra PNP',
+    badge_number: 'CIP 318945',
+    unit: 'Comisaría PNP San Andrés',
+  };
+  const isSuboficial = (user.rank || '').toLowerCase().includes('suboficial') || (user.rank || '').toLowerCase().includes('so');
+  const catPref = isSuboficial ? 'SA' : 'OA';
+  const cipDigits = (user.badge_number || '318945').replace(/\D/g, '') || '318945';
+  const postFirmaCip = `${catPref}-${cipDigits}`;
+
+  const crono = tabla.cronologia || {};
+  let diaHecho = diaInicio;
+  let mesHecho = mesInicio;
+  let horaHecho = crono.hora_aproximada || '21:00';
+  if (crono.fecha_relativa && crono.fecha_relativa.toLowerCase().includes('ayer')) {
+    const ayer = new Date(now.getTime() - 24 * 3600000);
+    diaHecho = String(ayer.getDate()).padStart(2, '0');
+    mesHecho = meses[ayer.getMonth()];
+  }
+
+  const bienesArray = Array.isArray(tabla.bien_sustraido) ? tabla.bien_sustraido : [tabla.bien_sustraido || 'Teléfono celular'];
+  const bienesTexto = bienesArray.join(', ');
+  const montoValorizado = numeroALetrasSoles(bienesTexto + ' ' + (tabla.relato_original || ''));
+
+  const perp = tabla.perpetradores || {};
+  const perpCantidad = perp.cantidad ? `${perp.cantidad} persona(s)` : 'Sujeto(s) en proceso de individualización';
+  const perpArma = perp.uso_arma ? `Sí, emplearon ${perp.tipo_arma || 'arma de fuego'}` : 'No se advirtió visiblemente uso de armas';
+  const perpVehiculo = perp.uso_vehiculo ? `Sí, huyeron a bordo de ${perp.tipo_vehiculo || 'motocicleta lineal'}` : 'Desplazamiento a pie';
+  const perpDesc = perp.descripcion_fisica || 'Sujetos de contextura mediana, tez trigueña, vestimentas oscuras';
+
+  const actaNum = tabla.acta_numero || `ACTA-PNP-2026-${data.request_id || '001'}`;
+
+  return `POLICÍA NACIONAL DEL PERÚ
+REGIÓN POLICIAL LIMA / DIVPOL CENTRO 1 / ${(user.unit || 'COMISARÍA PNP SAN ANDRÉS').toUpperCase()}
+FORMATO 19 — MANUAL DE DOCUMENTACIÓN POLICIAL (R.D. N° 776-2016-DIRGEN)
+
+"Año del Bicentenario, de la consolidación de nuestra Independencia, y de la conmemoración de las heroicas batallas de Junín y Ayacucho"
+
+ACTA DE RECEPCIÓN DE DENUNCIA VERBAL
+N° ${actaNum}
+
+En la ciudad de Lima en las oficinas de la ${user.unit || 'Comisaría PNP San Andrés'}, siendo las ${horaInicio} horas del día ${diaInicio} de ${mesInicio} del año ${anioInicio}, presente ante el instructor ${user.rank} PNP ${user.full_name} con carné de identidad N° ${user.badge_number}, la persona de ${(denunciante.nombres_apellidos || 'Carlos Alberto Quispe Huamán').toUpperCase()}, de ${denunciante.edad || 34} años de edad, natural de Perú, estado civil ${denunciante.estado_civil || 'Soltero(a)'}, con grado de instrucción ${denunciante.grado_instruccion || 'Superior Universitaria'}, identificado(a) con ${denunciante.tipo_documento || 'DNI'} N° ${denunciante.numero_documento || '47891234'}, de ocupación u oficio ${denunciante.ocupacion || 'Ingeniero de Sistemas'}, con domicilio en la ${denunciante.domicilio || 'Av. Brasil 1450 Dpto. 501, Jesús María, Lima'}, de la localidad de Lima Metropolitana, distrito de Jesús María, provincia de Lima, departamento de Lima;
+
+DENUNCIANDO:
+Que, el día ${diaHecho}, mes: ${mesHecho}, del año ${anioInicio}, a horas: ${horaHecho} aproximadamente:
+
+I. NARRACIÓN CIRCUNSTANCIADA DEL HECHO DENUNCIADO:
+En circunstancias que el recurrente se encontraba transitando a la altura de ${tabla.lugar_hecho || 'la vía pública'}, fue víctima de un acto ilícito contra su patrimonio, perpetrado bajo la modalidad de ${tabla.modalidad || 'Al paso'}, mediando ${tabla.nivel_violencia || 'violencia / intimidación'}, hecho que conllevó al despojo de sus pertenencias por parte de los presuntos facinerosos, quienes una vez consumado el hecho se dieron a la fuga.
+
+II. MANIFESTACIÓN TEXTUAL DEL DENUNCIANTE (RELATO ESPONTÁNEO DEL CIUDADANO):
+Que, en este acto el ciudadano denunciante formula su declaración en forma libre, voluntaria y con sus propias palabras, manifestando textualmente lo siguiente:
+"${tabla.relato_original || ''}"
+
+III. PRESUNTO(S) AUTOR(ES) Y CARACTERÍSTICAS FÍSICAS (SI FUERA EL CASO):
+- Cantidad de presuntos autores: ${perpCantidad}.
+- Características físicas y fisonomía: ${perpDesc}.
+- Empleo de armas: ${perpArma}.
+- Uso de vehículo o medio de fuga: ${perpVehiculo}.
+
+IV. DOMICILIO DE LOS PRESUNTOS AUTORES Y TESTIGOS DEL HECHO:
+- Domicilio de los presuntos autores: Se desconoce al momento; en proceso de identificación y ubicación policial.
+- Testigos presenciales: Transeúntes y residentes de la zona, cuyas declaraciones serán recabadas en la investigación.
+
+V. ESPECIES Y BIENES SUSTRAÍDOS / VALORACIÓN PATRIMONIAL:
+- Bienes y efectos sustraídos: ${bienesTexto}.
+- Valoración patrimonial estimada: ${montoValorizado}.
+
+VI. CALIFICACIÓN JURÍDICO-PENAL Y SUBSUNCIÓN (SISTEMA RAG PNP):
+- Delito principal: CONTRA EL PATRIMONIO.
+- Tipo penal específico: ${tabla.tipo_penal} (${tabla.articulo}).
+- Modalidad calificada: ${tabla.modalidad}.
+- Nivel de coacción / violencia: ${tabla.nivel_violencia}.
+- Sustento fáctico-jurídico (Grounding): "${tabla.grounding_span}".
+- Grado de certeza de subsunción típica RAG: ${(tabla.confianza_clasificacion * 100).toFixed(1)}%.
+
+VII. DILIGENCIAS POLICIALES DISPUESTAS Y COMUNICACIÓN AL MINISTERIO PÚBLICO:
+De conformidad con los Artículos 67°, 68° y 331° del Código Procesal Penal:
+1. Poner en conocimiento inmediato del Representante del Ministerio Público (Fiscal Provincial Penal Corporativo de Turno de Lima).
+2. Practicar la Inspección Técnico Policial (ITP) en la escena del delito para el recojo de indicios.
+3. Solicitar las grabaciones de cámaras de videovigilancia públicas (C2 Serenazgo) y comercios vecinos.
+4. Remitir los actuados a la Sección de Investigación de Delitos y Faltas (SEINCRI PNP).
+
+--- Siendo las ${horaFin} hrs, del mismo día, se da por concluida la presente diligencia, previa lectura y ratificación en todo su contenido por el denunciante por ser conforme a la verdad, firmando a continuación el instructor y el denunciante quien estampa su índice digital derecho en señal de conformidad. ---
+
+EL INSTRUCTOR                                    DENUNCIANTE
+[SELLO REDONDO OFICIAL 3.0 CM]                   [HUELLA DIGITAL - ÍNDICE DERECHO]
+
+___________________________________             ___________________________________
+${postFirmaCip}                                  ${(denunciante.nombres_apellidos || 'Carlos Alberto Quispe Huamán').toUpperCase()}
+${(user.full_name || 'Edwin MARTÍNEZ TORRES').toUpperCase()}
+${user.rank || 'Suboficial de 1ra PNP'}          ${denunciante.tipo_documento || 'DNI'} N° ${denunciante.numero_documento || '47891234'}
+Instructor Policial de Guardia                   DENUNCIANTE / AGRAVIADO`;
+}
+
+// ── Renderizado Oficial FORMATO 19 según R.D. N° 776-2016-DIRGEN/EMG-PNP ──────
+function renderActaOficialPNP(data, denunciante) {
   if (!el.actaSheetContent) return;
 
   const tabla = data.tabla_denuncia;
-
   const now = new Date();
+  const meses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'setiembre', 'octubre', 'noviembre', 'diciembre'];
+  const diaInicio = String(now.getDate()).padStart(2, '0');
+  const mesInicio = meses[now.getMonth()];
+  const anioInicio = now.getFullYear();
+  const horaInicio = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
 
-  const fechaStr = now.toLocaleDateString('es-PE', { day: '2-digit', month: 'long', year: 'numeric' });
+  // Hora de conclusión estimada (20 minutos de diligencia según estándar policial)
+  const fechaFin = new Date(now.getTime() + 20 * 60000);
+  const horaFin = String(fechaFin.getHours()).padStart(2, '0') + ':' + String(fechaFin.getMinutes()).padStart(2, '0');
 
-  const horaStr = now.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' });
-
-  const actaNum = tabla.acta_numero || `ACTA-PNP-2026-${data.request_id}`;
-
-
-
+  // Datos del instructor policial
   const user = window.AuthManager?.getUser() || {
-
     full_name: 'Martínez Torres, Edwin',
-
     rank: 'Suboficial de 1ra PNP',
-
     badge_number: 'CIP 318945',
-
-    unit: 'Comisaría PNP Sectorial Lima Centro',
-
+    unit: 'Comisaría PNP San Andrés',
   };
+  const isSuboficial = (user.rank || '').toLowerCase().includes('suboficial') || (user.rank || '').toLowerCase().includes('so');
+  const catPref = isSuboficial ? 'SA' : 'OA';
+  const cipDigits = (user.badge_number || '318945').replace(/\D/g, '') || '318945';
+  const postFirmaCip = `${catPref}-${cipDigits}`;
+  const instructorNombre = (user.full_name || 'Edwin MARTÍNEZ TORRES').toUpperCase();
+  const instructorGrado = user.rank || 'Suboficial de 1ra PNP';
+  const comisariaNombre = user.unit || 'COMISARÍA PNP SAN ANDRÉS';
 
-
-
+  // Datos cronológicos del hecho
+  const crono = tabla.cronologia || {};
+  let diaHecho = diaInicio;
+  let mesHecho = mesInicio;
+  let horaHecho = crono.hora_aproximada || '21:00';
+  if (crono.fecha_relativa && crono.fecha_relativa.toLowerCase().includes('ayer')) {
+    const ayer = new Date(now.getTime() - 24 * 3600000);
+    diaHecho = String(ayer.getDate()).padStart(2, '0');
+    mesHecho = meses[ayer.getMonth()];
+  }
   const cronoText = renderCronologia(tabla.cronologia);
 
-  const bienesText = Array.isArray(tabla.bien_sustraido) ? tabla.bien_sustraido.join(', ') : tabla.bien_sustraido;
+  // Datos del denunciante
+  const nombreDenunciante = (denunciante.nombres_apellidos || 'Carlos Alberto Quispe Huamán').toUpperCase();
+  const docTipo = denunciante.tipo_documento || 'DNI';
+  const docNum = denunciante.numero_documento || '47891234';
+  const edadDenunciante = denunciante.edad || 34;
+  const estadoCivil = denunciante.estado_civil || 'Soltero(a)';
+  const gradoInstruccion = denunciante.grado_instruccion || 'Superior Universitaria';
+  const ocupacion = denunciante.ocupacion || 'Ingeniero de Sistemas';
+  const domicilio = denunciante.domicilio || 'Av. Brasil 1450 Dpto. 501, Jesús María, Lima';
 
+  // Detección de distrito
+  let distrito = 'Lima';
+  const matchDistrito = domicilio.match(/(?:,\s*)([A-Za-zÁ-ÿ\s]+)(?:,\s*Lima)/i);
+  if (matchDistrito && matchDistrito[1]) {
+    distrito = matchDistrito[1].trim();
+  }
+
+  // Correlativo oficial
+  const actaNum = tabla.acta_numero || `ACTA-PNP-2026-${data.request_id || '001'}`;
+
+  // Perpetradores
   const perp = tabla.perpetradores || {};
+  const perpCantidad = perp.cantidad ? `${perp.cantidad} sujeto(s)` : 'Sujeto(s) no identificado(s)';
+  const perpArma = perp.uso_arma ? `Sí, emplearon ${escapeHtml(perp.tipo_arma || 'arma de fuego')}` : 'No se apreció visiblemente uso de armas';
+  const perpVehiculo = perp.uso_vehiculo ? `Sí, huyeron a bordo de ${escapeHtml(perp.tipo_vehiculo || 'motocicleta lineal')}` : 'Desplazamiento a pie por calles aledañas';
+  const perpDesc = perp.descripcion_fisica || 'Sujetos de contextura mediana, tez trigueña, vestimentas oscuras, rostros semicubiertos';
 
-  const perpsDesc = `${perp.cantidad ? perp.cantidad + ' sujeto(s)' : 'Sujeto(s) no identificado(s)'} | Vehículo: ${perp.uso_vehiculo ? (perp.tipo_vehiculo || 'Sí') : 'No'} | Armas: ${perp.uso_arma ? (perp.tipo_arma || 'Sí') : 'No'}`;
-
-
+  // Bienes sustraídos y cuantificación económica legal
+  const bienesArray = Array.isArray(tabla.bien_sustraido) ? tabla.bien_sustraido : [tabla.bien_sustraido || 'Teléfono celular'];
+  const bienesTexto = bienesArray.join(', ');
+  const textoParaMonto = bienesTexto + ' ' + (tabla.relato_original || '');
+  const valorizacionLegal = numeroALetrasSoles(textoParaMonto);
 
   const html = `
-
-    <div class="acta-header-block">
-
-      <div class="acta-emblem-badge" aria-hidden="true">
-
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
-
-          <path d="M12 2L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-3z"/>
-
-        </svg>
-
+    <!-- CABECERA INSTITUCIONAL CON SELLO MEMBRETE Y FORMATO 19 -->
+    <div class="acta-header-row">
+      <!-- Sello Membrete rectangular reglamentario 7.0cm x 2.5cm (Pág. 27) -->
+      <div class="acta-sello-membrete">
+        <div class="escudo-col" aria-label="Escudo Nacional del Perú">
+          <svg width="30" height="36" viewBox="0 0 48 56" xmlns="http://www.w3.org/2000/svg">
+            <ellipse cx="24" cy="5" rx="10" ry="4" fill="none" stroke="#15803d" stroke-width="2"/>
+            <path d="M 6,10 L 42,10 Q 42,38 24,52 Q 6,38 6,10 Z" fill="#ffffff" stroke="#1e3a8a" stroke-width="2"/>
+            <line x1="24" y1="10" x2="24" y2="30" stroke="#1e3a8a" stroke-width="1.5"/>
+            <line x1="6" y1="30" x2="42" y2="30" stroke="#1e3a8a" stroke-width="1.5"/>
+            <path d="M 7,11 L 23,11 L 23,29 L 7,29 Z" fill="#bae6fd"/>
+            <ellipse cx="15" cy="21" rx="4" ry="2.5" fill="#b45309"/>
+            <path d="M 25,11 L 41,11 L 41,29 L 25,29 Z" fill="#ffffff"/>
+            <circle cx="33" cy="18" r="5" fill="#15803d"/>
+            <path d="M 7,31 L 41,31 Q 41,38 24,50 Q 7,38 7,31 Z" fill="#ef4444"/>
+            <path d="M 16,36 Q 26,33 34,39 Q 32,44 24,42 Z" fill="#fbbf24"/>
+          </svg>
+        </div>
+        <div class="texto-col">
+          <span class="m-pnp">POLICÍA NACIONAL DEL PERÚ</span>
+          <span class="m-sub">REGIÓN POLICIAL LIMA</span>
+          <span class="m-sub">DIVPOL CENTRO 1</span>
+          <span class="m-sub">${escapeHtml(comisariaNombre).toUpperCase()}</span>
+        </div>
       </div>
 
-      <h1 class="acta-header-title-1">POLICÍA NACIONAL DEL PERÚ</h1>
-
-      <h2 class="acta-header-title-2">REGIÓN POLICIAL LIMA · DIVPOL CENTRO · ${escapeHtml(user.unit || 'COMISARÍA PNP')}</h2>
-
-      <div class="acta-doc-title">ACTA DE RECEPCIÓN DE DENUNCIA VERBAL N° ${escapeHtml(actaNum)}</div>
-
+      <!-- Indicador oficial de Formato 19 (Pág. 148) -->
+      <div class="acta-formato-box">
+        <span class="acta-formato-tag">FORMATO 19</span>
+        <span class="acta-formato-ref">R.D. N° 776-2016-DIRGEN</span>
+      </div>
     </div>
 
+    <!-- LEMA OFICIAL ANUAL (Pág. 23) -->
+    <div class="acta-lema-oficial">
+      "Año del Bicentenario, de la consolidación de nuestra Independencia, y de la conmemoración de las heroicas batallas de Junín y Ayacucho"
+    </div>
 
+    <!-- DENOMINACIÓN OFICIAL DEL DOCUMENTO (Pág. 21 y 148: Impact 15-16pt, subrayada) -->
+    <div class="acta-titulo-documento">
+      ACTA DE RECEPCIÓN DE DENUNCIA VERBAL
+    </div>
+    <div class="acta-correlativo-oficial">
+      N° ${escapeHtml(actaNum)}
+    </div>
 
-    <p class="acta-intro">
-
-      En la ciudad de Lima, siendo las <strong>${horaStr} horas</strong> del día <strong>${fechaStr}</strong>, 
-
-      por ante el Efectivo Policial Instructor que suscribe, se hace presente la persona indicada en el rubro 
-
-      de datos del denunciante, a fin de formular una denuncia verbal por hechos ilícitos cometidos en su agravio, 
-
-      conforme a las prescripciones del Código Procesal Penal y Código Penal vigente:
-
+    <!-- ENCABEZAMIENTO FORMAL (FORMATO 19 PÁG. 148 VERBATIM) -->
+    <p class="acta-parrafo-encabezamiento">
+      En la ciudad de <strong>Lima</strong>, en las oficinas de la <strong>${escapeHtml(comisariaNombre)}</strong>, siendo las <strong>${horaInicio} horas</strong> del día <strong>${diaInicio} de ${mesInicio} del año ${anioInicio}</strong>, presente ante el instructor <strong>${escapeHtml(user.rank)} PNP ${escapeHtml(user.full_name)}</strong> con carné de identidad N° <strong>${escapeHtml(user.badge_number)}</strong>, la persona de <strong>${escapeHtml(nombreDenunciante)}</strong>, de <strong>${edadDenunciante} años</strong> de edad, natural de <strong>Perú</strong>, estado civil <strong>${escapeHtml(estadoCivil)}</strong>, con grado de instrucción <strong>${escapeHtml(gradoInstruccion)}</strong>, identificado(a) con <strong>${escapeHtml(docTipo)} N° ${escapeHtml(docNum)}</strong>, de ocupación u oficio <strong>${escapeHtml(ocupacion)}</strong>, con domicilio en la <strong>${escapeHtml(domicilio)}</strong> de la localidad de <strong>Lima Metropolitana</strong>, distrito de <strong>${escapeHtml(distrito)}</strong>, provincia de <strong>Lima</strong>, departamento de <strong>Lima</strong>;
     </p>
 
-
-
-    <div class="acta-sec-heading">I. DATOS DEL PERSONAL POLICIAL RECEPTOR</div>
-
-    <table class="acta-fields-table">
-
-      <tr>
-
-        <td class="label-cell">Efectivo Instructor:</td>
-
-        <td class="val-cell"><strong>${escapeHtml(user.full_name)}</strong> (${escapeHtml(user.rank)})</td>
-
-        <td class="label-cell">N° Carné / CIP:</td>
-
-        <td class="val-cell"><strong>${escapeHtml(user.badge_number)}</strong></td>
-
-      </tr>
-
-      <tr>
-
-        <td class="label-cell">Unidad / Comisaría:</td>
-
-        <td class="val-cell" colspan="3">${escapeHtml(user.unit)}</td>
-
-      </tr>
-
-    </table>
-
-
-
-    <div class="acta-sec-heading">II. DATOS GENERALES DEL DENUNCIANTE / AGRAVIADO</div>
-
-    <table class="acta-fields-table">
-
-      <tr>
-
-        <td class="label-cell">Nombres y Apellidos:</td>
-
-        <td class="val-cell"><strong>${escapeHtml(denunciante.nombres_apellidos)}</strong></td>
-
-        <td class="label-cell">Doc. Identidad:</td>
-
-        <td class="val-cell"><strong>${escapeHtml(denunciante.tipo_documento)} N° ${escapeHtml(denunciante.numero_documento)}</strong></td>
-
-      </tr>
-
-      <tr>
-
-        <td class="label-cell">Edad / Sexo:</td>
-
-        <td class="val-cell">${denunciante.edad} años · Sexo ${escapeHtml(denunciante.sexo)}</td>
-
-        <td class="label-cell">Estado Civil:</td>
-
-        <td class="val-cell">${escapeHtml(denunciante.estado_civil)}</td>
-
-      </tr>
-
-      <tr>
-
-        <td class="label-cell">Grado de Instrucción:</td>
-
-        <td class="val-cell"><span style="color:#0369a1; font-weight:700;">${escapeHtml(denunciante.grado_instruccion)}</span></td>
-
-        <td class="label-cell">Ocupación / Oficio:</td>
-
-        <td class="val-cell">${escapeHtml(denunciante.ocupacion)}</td>
-
-      </tr>
-
-      <tr>
-
-        <td class="label-cell">Dónde vive (Domicilio):</td>
-
-        <td class="val-cell" colspan="3"><strong>${escapeHtml(denunciante.domicilio)}</strong></td>
-
-      </tr>
-
-      <tr>
-
-        <td class="label-cell">Teléfono / Celular:</td>
-
-        <td class="val-cell" colspan="3">${escapeHtml(denunciante.telefono || 'No consigna')}</td>
-
-      </tr>
-
-    </table>
-
-
-
-    <div class="acta-sec-heading">III. CALIFICACIÓN JURÍDICA Y TIPIFICACIÓN PENAL (SISTEMA RAG)</div>
-
-    <table class="acta-fields-table">
-
-      <tr>
-
-        <td class="label-cell">Delito Principal:</td>
-
-        <td class="val-cell"><strong>CONTRA EL PATRIMONIO</strong></td>
-
-        <td class="label-cell">Tipo Penal Específico:</td>
-
-        <td class="val-cell">
-
-          <span class="acta-tipificacion-badge">⚖️ ${escapeHtml(tabla.tipo_penal)}</span>
-
-        </td>
-
-      </tr>
-
-      <tr>
-
-        <td class="label-cell">Artículo Aplicable:</td>
-
-        <td class="val-cell" colspan="3">
-
-          <strong>${escapeHtml(tabla.articulo)}</strong> (Código Penal de la República del Perú)
-
-        </td>
-
-      </tr>
-
-      <tr>
-
-        <td class="label-cell">Modalidad Delictiva:</td>
-
-        <td class="val-cell"><strong>${escapeHtml(tabla.modalidad)}</strong></td>
-
-        <td class="label-cell">Nivel de Violencia:</td>
-
-        <td class="val-cell"><strong>${escapeHtml(tabla.nivel_violencia)}</strong></td>
-
-      </tr>
-
-      <tr>
-
-        <td class="label-cell">Sustento Jurídico (Span):</td>
-
-        <td class="val-cell" colspan="3">
-
-          <em>"${escapeHtml(tabla.grounding_span)}"</em>
-
-        </td>
-
-      </tr>
-
-      <tr>
-
-        <td class="label-cell">Nivel de Certeza RAG:</td>
-
-        <td class="val-cell" colspan="3">
-
-          <strong>${(tabla.confianza_clasificacion * 100).toFixed(1)}%</strong> · Validación con ontología penal de laboratorio (Arts. 185, 186, 188, 189 CP).
-
-        </td>
-
-      </tr>
-
-    </table>
-
-
-
-    <div class="acta-sec-heading">IV. CIRCUNSTANCIAS Y HECHOS DENUNCIADOS</div>
-
-    <table class="acta-fields-table">
-
-      <tr>
-
-        <td class="label-cell">Fecha y Hora Aproximada:</td>
-
-        <td class="val-cell">${escapeHtml(cronoText)}</td>
-
-        <td class="label-cell">Lugar del Suceso:</td>
-
-        <td class="val-cell">${escapeHtml(tabla.lugar_hecho || 'Vía pública')}</td>
-
-      </tr>
-
-      <tr>
-
-        <td class="label-cell">Bienes Sustraídos / Afectados:</td>
-
-        <td class="val-cell" colspan="3"><strong>${escapeHtml(bienesText)}</strong></td>
-
-      </tr>
-
-      <tr>
-
-        <td class="label-cell">Presuntos Perpetradores:</td>
-
-        <td class="val-cell" colspan="3">${escapeHtml(perpsDesc)}</td>
-
-      </tr>
-
-    </table>
-
-
-
-    <div style="font-size:11.5px; font-weight:700; margin:6px 0 2px; font-family:var(--font-sans);">MANIFESTACIÓN TEXTUAL DE LOS HECHOS SEGÚN EL RELATO DEL CIUDADANO:</div>
-
-    <div class="acta-relato-box">
-
-      "${escapeHtml(tabla.relato_original)}"
-
+    <!-- CLÁUSULA DENUNCIANDO -->
+    <div class="acta-denunciando-bloque">
+      <div class="acta-denunciando-header">DENUNCIANDO:</div>
+      <div class="acta-denunciando-fecha">
+        Que, el día <strong>${diaHecho}</strong>, mes: <strong>${mesHecho}</strong>, del año <strong>${anioInicio}</strong>, a horas: <strong>${horaHecho}</strong> aproximadamente:
+      </div>
     </div>
 
+    <!-- I. NARRACIÓN CIRCUNSTANCIADA DEL HECHO DENUNCIADO -->
+    <div class="acta-seccion-bloque">
+      <div class="acta-seccion-titulo">I. NARRACIÓN CIRCUNSTANCIADA DEL HECHO DENUNCIADO:</div>
+      <p class="acta-seccion-p">
+        En circunstancias que el recurrente se encontraba en inmediaciones de <strong>${escapeHtml(tabla.lugar_hecho || 'la vía pública')}</strong> (${cronoText || 'horas de la noche'}), fue víctima de un acto ilícito contra su patrimonio, perpetrado bajo la modalidad de <strong>${escapeHtml(tabla.modalidad)}</strong>, mediando <strong>${escapeHtml(tabla.nivel_violencia.toLowerCase())}</strong>, hecho que conllevó al despojo de sus pertenencias por parte de los presuntos autores del hecho, quienes una vez consumado el ilícito procedieron a darse a la fuga con rumbo desconocido.
+      </p>
+    </div>
 
+    <!-- II. MANIFESTACIÓN TEXTUAL DEL DENUNCIANTE (RELATO ESPONTÁNEO DEL CIUDADANO) -->
+    <div class="acta-seccion-bloque">
+      <div class="acta-seccion-titulo">II. MANIFESTACIÓN TEXTUAL DEL DENUNCIANTE (RELATO DEL CIUDADANO):</div>
+      <p class="acta-seccion-p">
+        Que, en este acto y en presencia de la autoridad policial instructora, el ciudadano denunciante formula su declaración en forma libre, espontánea y voluntaria, exponiendo textualmente en sus propias palabras lo siguiente:
+      </p>
+      <div class="acta-manifestacion-textual">
+        "${escapeHtml(tabla.relato_original)}"
+      </div>
+    </div>
 
-    <div class="acta-sec-heading">V. DILIGENCIAS POLICIALES DISPUESTAS</div>
+    <!-- III. PRESUNTO(S) AUTOR(ES) Y CARACTERÍSTICAS FÍSICAS (FORMATO 19 PÁG. 148) -->
+    <div class="acta-seccion-bloque">
+      <div class="acta-seccion-titulo">III. PRESUNTO(S) AUTOR(ES) Y CARACTERÍSTICAS FÍSICAS (SI FUERA EL CASO):</div>
+      <p class="acta-seccion-p">
+        Siendo los presuntos autores de estos hechos las personas con las siguientes características constatadas:
+      </p>
+      <ul class="acta-lista-puntos">
+        <li><strong>Cantidad de sospechosos:</strong> ${escapeHtml(perpCantidad)}.</li>
+        <li><strong>Características físicas y fisonomía:</strong> ${escapeHtml(perpDesc)}.</li>
+        <li><strong>Empleo de armas:</strong> ${perpArma}.</li>
+        <li><strong>Uso de vehículo o medio de fuga:</strong> ${perpVehiculo}.</li>
+      </ul>
+    </div>
 
-    <ol style="font-size:12px; margin:4px 0 10px 22px; padding:0; line-height:1.6;">
+    <!-- IV. DOMICILIO DE LOS PRESUNTOS AUTORES Y TESTIGOS DEL HECHO -->
+    <div class="acta-seccion-bloque">
+      <div class="acta-seccion-titulo">IV. DOMICILIO DE LOS PRESUNTOS AUTORES Y TESTIGOS DEL HECHO:</div>
+      <ul class="acta-lista-puntos">
+        <li><strong>Domicilio de los presuntos autores:</strong> Se desconoce al momento; en proceso de individualización, ubicación y captura por personal de investigaciones.</li>
+        <li><strong>Testigos presenciales:</strong> Transeúntes y moradores del sector, cuyas declaraciones testimoniales serán recabadas durante las indagaciones preliminares.</li>
+      </ul>
+    </div>
 
-      <li>Poner el hecho en conocimiento de la <strong>Fiscalía Provincial Corporativa de Turno de Lima</strong>.</li>
+    <!-- V. ESPECIES Y BIENES SUSTRAÍDOS / VALORACIÓN PATRIMONIAL -->
+    <div class="acta-seccion-bloque">
+      <div class="acta-seccion-titulo">V. ESPECIES Y BIENES SUSTRAÍDOS / VALORACIÓN PATRIMONIAL:</div>
+      <ul class="acta-lista-puntos">
+        <li><strong>Bienes y objetos afectados:</strong> <strong>${escapeHtml(bienesTexto)}</strong>.</li>
+        <li><strong>Valorización económica estimada:</strong> ${escapeHtml(valorizacionLegal)}.</li>
+      </ul>
+    </div>
 
-      <li>Disponer la realización de la <strong>Inspección Técnico Policial (ITP)</strong> en el lugar de los hechos.</li>
+    <!-- VI. CALIFICACIÓN JURÍDICO-PENAL Y SUBSUNCIÓN (SISTEMA RAG PNP) -->
+    <div class="acta-seccion-bloque">
+      <div class="acta-seccion-titulo">VI. CALIFICACIÓN JURÍDICO-PENAL Y SUBSUNCIÓN (SISTEMA RAG PNP):</div>
+      <p class="acta-seccion-p">
+        De conformidad con el análisis automatizado de subsunción típica con base en la ontología del Código Penal de la República del Perú:
+      </p>
+      <table class="acta-tabla-calificacion">
+        <tr>
+          <td class="tit">Delito Principal:</td>
+          <td><strong>DELITO CONTRA EL PATRIMONIO</strong></td>
+          <td class="tit">Tipo Penal Específico:</td>
+          <td><span class="acta-badge-penal">⚖️ ${escapeHtml(tabla.tipo_penal)}</span></td>
+        </tr>
+        <tr>
+          <td class="tit">Dispositivo Legal:</td>
+          <td colspan="3"><strong>${escapeHtml(tabla.articulo)}</strong> (Código Penal Peruano - D. Leg. N° 635)</td>
+        </tr>
+        <tr>
+          <td class="tit">Modalidad Tipificada:</td>
+          <td>${escapeHtml(tabla.modalidad)}</td>
+          <td class="tit">Nivel de Violencia:</td>
+          <td>${escapeHtml(tabla.nivel_violencia)}</td>
+        </tr>
+        <tr>
+          <td class="tit">Sustento Normativo (Span):</td>
+          <td colspan="3"><em>"${escapeHtml(tabla.grounding_span)}"</em></td>
+        </tr>
+        <tr>
+          <td class="tit">Certeza Ontológica RAG:</td>
+          <td colspan="3"><strong>${(tabla.confianza_clasificacion * 100).toFixed(1)}% de concordancia semántica y jurídica</strong> con el corpus legal validado (Arts. 185, 186, 188, 189 CP).</td>
+        </tr>
+      </table>
+    </div>
 
-      <li>Oficiar a las entidades correspondientes para el <strong>acopio y visualización de cámaras de seguridad</strong> (públicas y privadas).</li>
+    <!-- VII. DILIGENCIAS POLICIALES DISPUESTAS Y COMUNICACIÓN AL MINISTERIO PÚBLICO -->
+    <div class="acta-seccion-bloque">
+      <div class="acta-seccion-titulo">VII. DILIGENCIAS POLICIALES DISPUESTAS Y COMUNICACIÓN AL MINISTERIO PÚBLICO:</div>
+      <p class="acta-seccion-p">
+        En aplicación de las facultades policiales contempladas en los Artículos 67°, 68° y 331° del Código Procesal Penal (D. Leg. N° 957):
+      </p>
+      <ol class="acta-lista-diligencias">
+        <li>Poner en conocimiento inmediato del Representante del Ministerio Público — <strong>Fiscal Provincial Penal Corporativo de Turno de Lima</strong>.</li>
+        <li>Disponer la práctica de la <strong>Inspección Técnico Policial (ITP)</strong> en el lugar de los hechos a fin de perennizar evidencias e indicios.</li>
+        <li>Solicitar a las autoridades municipales (Central de Videovigilancia y Serenazgo) y comercios vecinos la preservación y remisión de los <strong>registros fílmicos de videovigilancia</strong>.</li>
+        <li>Remitir la presente acta a la <strong>Sección de Investigación de Delitos y Faltas (SEINCRI PNP)</strong> para la prosecución de las investigaciones de ley.</li>
+      </ol>
+    </div>
 
-    </ol>
-
-
-
-    <div class="acta-sec-heading">VI. CONSTANCIA DE ENTERADO Y CONFORMIDAD</div>
-
-    <p style="font-size:11.5px; text-align:justify; margin-bottom:16px;">
-
-      Leída la presente acta al denunciante, este se ratifica en todos sus extremos por ser la estricta 
-
-      verdad de lo sucedido, firmando e imprimiendo su huella digital en señal de conformidad, 
-
-      juntamente con el personal policial instructor que recepciona y autoriza la presente.
-
+    <!-- FÓRMULA DE TÉRMINO OFICIAL (PÁG. 148 FORMATO 19 VERBATIM) -->
+    <p class="acta-termino-parrafo">
+      --- Siendo las <strong>${horaFin} hrs</strong>, del mismo día, se da por concluida la presente diligencia, previa lectura y ratificación en todo su contenido por el denunciante por ser conforme a la verdad, firmando a continuación el instructor y el denunciante quien estampa su índice digital derecho en señal de conformidad. ---
     </p>
 
-
-
-    <div class="acta-signatures-grid">
-
-      <div class="acta-sig-box">
-
-        <div class="acta-fingerprint-box">
-
-          Índice Derecho (Huella)
-
+    <!-- BLOQUE OFICIAL DE SUSCRIPCIÓN Y FIRMAS (PÁG. 24, 27, 30, 148) -->
+    <div class="acta-bloque-firmas">
+      <!-- COLUMNA 1: EL INSTRUCTOR (IZQUIERDA) -->
+      <div class="acta-columna-instructor">
+        <!-- Sello Redondo Reglamentario de 3.0 cm (Pág. 27) -->
+        <div class="acta-sello-redondo-holder">
+          <svg width="114" height="114" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" class="sello-redondo-svg">
+            <defs>
+              <path id="semicircleTop" d="M 15,60 A 45,45 0 0,1 105,60" fill="none"/>
+              <path id="semicircleBottom" d="M 105,60 A 45,45 0 0,1 15,60" fill="none"/>
+            </defs>
+            <circle cx="60" cy="60" r="57" fill="#ffffff" stroke="#1e3a8a" stroke-width="2.2"/>
+            <circle cx="60" cy="60" r="44" fill="none" stroke="#1e3a8a" stroke-width="1.0" stroke-dasharray="2,2"/>
+            <circle cx="60" cy="60" r="42" fill="none" stroke="#1e3a8a" stroke-width="1.5"/>
+            <text fill="#1e3a8a" font-size="7.5" font-weight="bold" font-family="Arial, sans-serif" letter-spacing="1.1">
+              <textPath href="#semicircleTop" startOffset="50%" text-anchor="middle">POLICÍA NACIONAL DEL PERÚ</textPath>
+            </text>
+            <text fill="#1e3a8a" font-size="6.5" font-weight="bold" font-family="Arial, sans-serif" letter-spacing="0.8">
+              <textPath href="#semicircleBottom" startOffset="50%" text-anchor="middle">${escapeHtml(comisariaNombre).toUpperCase()}</textPath>
+            </text>
+            <text x="12" y="62" fill="#1e3a8a" font-size="8" text-anchor="middle">★</text>
+            <text x="108" y="62" fill="#1e3a8a" font-size="8" text-anchor="middle">★</text>
+            <g transform="translate(44, 38) scale(0.65)">
+              <ellipse cx="24" cy="4" rx="9" ry="3.5" fill="none" stroke="#15803d" stroke-width="1.8"/>
+              <path d="M 6,8 L 42,8 Q 42,28 24,38 Q 6,28 6,8 Z" fill="#ffffff" stroke="#1e3a8a" stroke-width="1.5"/>
+              <line x1="24" y1="8" x2="24" y2="23" stroke="#1e3a8a" stroke-width="1.2"/>
+              <line x1="6" y1="23" x2="42" y2="23" stroke="#1e3a8a" stroke-width="1.2"/>
+              <path d="M 6.8,9.2 L 23.2,9.2 L 23.2,22.2 L 6.8,22.2 Z" fill="#bae6fd"/>
+              <ellipse cx="15" cy="17" rx="3.5" ry="2" fill="#b45309"/>
+              <line x1="17" y1="17" x2="18" y2="12" stroke="#b45309" stroke-width="1.5"/>
+              <circle cx="18" cy="11.5" r="1.2" fill="#b45309"/>
+              <path d="M 24.8,9.2 L 41.2,9.2 L 41.2,22.2 L 24.8,22.2 Z" fill="#ffffff"/>
+              <circle cx="33" cy="14" r="4" fill="#15803d"/>
+              <line x1="33" y1="14" x2="33" y2="21" stroke="#78350f" stroke-width="1.5"/>
+              <path d="M 6.8,23.8 L 41.2,23.8 Q 41.2,28 24,36.5 Q 6.8,28 6.8,23.8 Z" fill="#ef4444"/>
+              <path d="M 14,28 Q 24,25 32,30 Q 30,34 22,32 Z" fill="#fbbf24"/>
+              <circle cx="15" cy="30" r="1.3" fill="#fef08a"/>
+              <circle cx="18" cy="31.5" r="1.3" fill="#fef08a"/>
+              <circle cx="21" cy="31" r="1.3" fill="#fef08a"/>
+            </g>
+          </svg>
         </div>
-
-        <div class="acta-sig-line"></div>
-
-        <div class="acta-sig-name">${escapeHtml(denunciante.nombres_apellidos)}</div>
-
-        <div class="acta-sig-sub">${escapeHtml(denunciante.tipo_documento)} N° ${escapeHtml(denunciante.numero_documento)}</div>
-
-        <div class="acta-sig-sub"><strong>EL DENUNCIANTE / AGRAVIADO</strong></div>
-
+        <!-- Línea de post-firma de 4.0 cm reglamentaria (Pág. 30) -->
+        <div class="acta-trazo-firma-instructor"></div>
+        <div class="acta-postfirma-instructor">
+          <div class="cip">${escapeHtml(postFirmaCip)}</div>
+          <div class="nombre">${escapeHtml(instructorNombre)}</div>
+          <div>${escapeHtml(instructorGrado)}</div>
+          <div>Instructor Policial de Guardia</div>
+        </div>
+        <div class="acta-rol-firmante">EL INSTRUCTOR</div>
       </div>
 
-
-
-      <div class="acta-sig-box">
-
-        <div style="height:85px; display:flex; align-items:center; justify-content:center; color:#94a3b8; font-size:10px; font-family:var(--font-sans);">
-
-          [ Sello Oficial de Comisaría ]
-
+      <!-- COLUMNA 2: DENUNCIANTE (DERECHA) -->
+      <div class="acta-columna-denunciante">
+        <!-- Recuadro para Huella Digital 2.5cm x 3.5cm (Pág. 64 y 148) -->
+        <div class="acta-huella-digital-box">
+          <svg width="34" height="42" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="1.3" stroke-linecap="round">
+            <path d="M12 11c0-1.66-1.34-3-3-3s-3 1.34-3 3c0 2.21 1.79 4 4 4"/>
+            <path d="M12 5.5c-3.04 0-5.5 2.46-5.5 5.5 0 3.31 2.69 6 6 6 1.35 0 2.6-.45 3.6-1.21"/>
+            <path d="M12 2C7.03 2 3 6.03 3 11c0 3.84 2.42 7.12 5.86 8.36"/>
+            <path d="M17.66 7.34C18.5 8.42 19 9.66 19 11c0 4.97-4.03 9-9 9-1.22 0-2.39-.24-3.46-.68"/>
+            <path d="M15 11c0-1.66-1.34-3-3-3"/>
+            <path d="M12 17c-2.76 0-5-2.24-5-5"/>
+            <path d="M9 11c0-.55.45-1 1-1s1 .45 1 1c0 1.1-.9 2-2 2"/>
+          </svg>
+          <div class="huella-label">ÍNDICE DERECHO<br/>(HUELLA DIGITAL)</div>
         </div>
-
-        <div class="acta-sig-line"></div>
-
-        <div class="acta-sig-name">${escapeHtml(user.full_name)}</div>
-
-        <div class="acta-sig-sub">${escapeHtml(user.rank)} · ${escapeHtml(user.badge_number)}</div>
-
-        <div class="acta-sig-sub"><strong>EL INSTRUCTOR PNP (RECEPTOR)</strong></div>
-
+        <!-- Línea de firma de 4.5 cm -->
+        <div class="acta-trazo-firma-denunciante"></div>
+        <div class="acta-postfirma-denunciante">
+          <div class="nombre">${escapeHtml(nombreDenunciante)}</div>
+          <div>${escapeHtml(docTipo)} N° ${escapeHtml(docNum)}</div>
+          <div style="font-size:7.5pt; color:#64748b;">Denunciante / Agraviado</div>
+        </div>
+        <div class="acta-rol-firmante">DENUNCIANTE</div>
       </div>
-
     </div>
-
   `;
 
-
-
   el.actaSheetContent.innerHTML = html;
-
 }
-
-
 
 function printActa() {
-
   window.print();
-
 }
-
-
 
 function copyActaText() {
+  if (!state.currentResult) {
+    if (el.actaSheetContent) {
+      navigator.clipboard.writeText(el.actaSheetContent.innerText).then(() => {
+        showToast('✓ Acta Oficial PNP copiada al portapapeles', 'success');
+      });
+    }
+    return;
+  }
 
-  if (!el.actaSheetContent) return;
-
-  const text = el.actaSheetContent.innerText;
+  const complainantData = getComplainantData();
+  const text = generateActaPlainText(state.currentResult, complainantData);
 
   navigator.clipboard.writeText(text).then(() => {
-
-    showToast('✓ Acta Oficial PNP copiada al portapapeles', 'success');
-
+    showToast('✓ Acta Oficial PNP copiada al portapapeles (Formato 19)', 'success');
   }).catch(() => {
-
-    showToast('Error al copiar el acta', 'error');
-
+    if (el.actaSheetContent) {
+      navigator.clipboard.writeText(el.actaSheetContent.innerText).then(() => {
+        showToast('✓ Acta Oficial PNP copiada al portapapeles', 'success');
+      });
+    } else {
+      showToast('Error al copiar el acta', 'error');
+    }
   });
-
 }
-
-
 
 function renderResult(data) {
 
