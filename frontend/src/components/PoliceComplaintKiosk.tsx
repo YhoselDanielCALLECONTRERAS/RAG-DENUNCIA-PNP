@@ -436,8 +436,8 @@ export default function PoliceComplaintKiosk() {
       </header>
 
       {/* ── CONTENEDOR DE PANELES (GRID 2 COLUMNAS h-full) ─────────────────── */}
-      <div className="flex-1 overflow-hidden p-6">
-        <div className="grid grid-cols-2 gap-8 h-full">
+      <div className="flex-1 overflow-y-auto p-4 md:p-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 min-h-full">
 
           {/* ════════════════════════════════════════════════════════════════════
               PANEL IZQUIERDO: Captura y Voz (h-full overflow-y-auto)
@@ -459,7 +459,7 @@ export default function PoliceComplaintKiosk() {
               </div>
 
               {/* Grid 2 Columnas (Sin autoFocus) */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
                     Nombres
@@ -543,7 +543,7 @@ export default function PoliceComplaintKiosk() {
                   />
                 </div>
 
-                <div className="col-span-2">
+                <div className="col-span-1 sm:col-span-2">
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
                     Dónde vive (Dirección Domiciliaria)
                   </label>
@@ -767,7 +767,7 @@ export default function PoliceComplaintKiosk() {
                   II. Filiación del Denunciante / Agraviado
                 </div>
                 <div className="grid grid-cols-3 gap-3 p-1 text-xs">
-                  <div className="col-span-2">
+                  <div className="col-span-1 sm:col-span-2">
                     <InlineField
                       label="Nombres y Apellidos"
                       value={`${complainant.nombres} ${complainant.apellidos}`}
@@ -806,7 +806,7 @@ export default function PoliceComplaintKiosk() {
                       onChange={(val) => setComplainant({ ...complainant, ocupacion: val })}
                     />
                   </div>
-                  <div className="col-span-2">
+                  <div className="col-span-1 sm:col-span-2">
                     <InlineField
                       label="Dónde vive (Domicilio)"
                       value={complainant.domicilio}

@@ -10,8 +10,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles/main.css?v=2.9" />
-  <link rel="stylesheet" href="styles/v2-additions.css?v=2.9" />
+  <link rel="stylesheet" href="styles/main.css?v=3.0" />
+  <link rel="stylesheet" href="styles/v2-additions.css?v=3.0" />
 </head>
 <body>
 
@@ -112,12 +112,13 @@
             </div>
           </div>
           <div class="denunciante-form" id="denunciante-form">
-            <div class="form-grid-2">
+            <!-- Fila 1: Nombre completo + Tipo y Número de Documento -->
+            <div class="form-row form-row--name-doc">
               <div class="field-group">
                 <label for="denunciante-nombre">Nombres y Apellidos *</label>
                 <input class="field-input" id="denunciante-nombre" type="text" placeholder="Ej. Carlos Alberto Quispe Huamán" value="Carlos Alberto Quispe Huamán" required />
               </div>
-              <div class="form-grid-2">
+              <div class="field-doc-combo">
                 <div class="field-group">
                   <label for="denunciante-doc-tipo">Tipo Doc.</label>
                   <select class="field-select" id="denunciante-doc-tipo">
@@ -133,7 +134,8 @@
               </div>
             </div>
 
-            <div class="form-grid-3">
+            <!-- Fila 2: Grado de Instrucción y Estado Civil -->
+            <div class="form-row form-row--2">
               <div class="field-group">
                 <label for="denunciante-grado-instruccion">Educación / Grado Instrucción *</label>
                 <select class="field-select" id="denunciante-grado-instruccion">
@@ -155,35 +157,36 @@
                   <option value="Viudo(a)">Viudo(a)</option>
                 </select>
               </div>
-              <div class="form-grid-2">
-                <div class="field-group">
-                  <label for="denunciante-edad">Edad</label>
-                  <input class="field-input" id="denunciante-edad" type="number" min="18" max="99" value="34" />
-                </div>
-                <div class="field-group">
-                  <label for="denunciante-sexo">Sexo</label>
-                  <select class="field-select" id="denunciante-sexo">
-                    <option value="Masculino" selected>M</option>
-                    <option value="Femenino">F</option>
-                  </select>
-                </div>
+            </div>
+
+            <!-- Fila 3: Edad, Sexo, Ocupación y Teléfono (4 columnas limpias con wrapping) -->
+            <div class="form-row form-row--meta">
+              <div class="field-group">
+                <label for="denunciante-edad">Edad</label>
+                <input class="field-input" id="denunciante-edad" type="number" min="18" max="99" value="34" />
+              </div>
+              <div class="field-group">
+                <label for="denunciante-sexo">Sexo</label>
+                <select class="field-select" id="denunciante-sexo">
+                  <option value="Masculino" selected>M</option>
+                  <option value="Femenino">F</option>
+                </select>
+              </div>
+              <div class="field-group">
+                <label for="denunciante-ocupacion">Ocupación</label>
+                <input class="field-input" id="denunciante-ocupacion" type="text" placeholder="Ej. Ingeniero de Sistemas" value="Ingeniero de Sistemas" />
+              </div>
+              <div class="field-group">
+                <label for="denunciante-telefono">Teléfono / Celular</label>
+                <input class="field-input" id="denunciante-telefono" type="tel" placeholder="Ej. 987654321" value="987654321" />
               </div>
             </div>
 
-            <div class="form-grid-2">
+            <!-- Fila 4: Domicilio Real (Ancho completo para direcciones peruanas largas) -->
+            <div class="form-row form-row--1">
               <div class="field-group">
                 <label for="denunciante-domicilio">Dónde vive / Domicilio Real *</label>
                 <input class="field-input" id="denunciante-domicilio" type="text" placeholder="Ej. Av. Brasil 1450 Dpto. 501, Jesús María, Lima" value="Av. Brasil 1450 Dpto. 501, Jesús María, Lima" required />
-              </div>
-              <div class="form-grid-2">
-                <div class="field-group">
-                  <label for="denunciante-ocupacion">Ocupación</label>
-                  <input class="field-input" id="denunciante-ocupacion" type="text" placeholder="Ej. Ingeniero de Sistemas" value="Ingeniero de Sistemas" />
-                </div>
-                <div class="field-group">
-                  <label for="denunciante-telefono">Teléfono / Celular</label>
-                  <input class="field-input" id="denunciante-telefono" type="tel" placeholder="Ej. 987654321" value="987654321" />
-                </div>
               </div>
             </div>
           </div>
@@ -547,7 +550,7 @@ Ejemplo: &quot;Ayer a las 9pm dos sujetos en moto me encañonaron con pistola y 
   <!-- Toast de notificaciones -->
   <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
 
-  <script src="js/auth.js?v=2.9"></script>
-  <script src="js/app.js?v=2.9"></script>
+  <script src="js/auth.js?v=3.0"></script>
+  <script src="js/app.js?v=3.0"></script>
 </body>
 </html>
