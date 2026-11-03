@@ -422,7 +422,7 @@ function showError(message) {
 
   el.formError.hidden = false;
 
-  el.formError.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  // scrollIntoView eliminado para evitar saltos forzados hacia abajo
 
 }
 
@@ -2603,20 +2603,16 @@ async function init() {
   // ── Auto-carga inicial para visualización inmediata en localhost ───────────
 
   if (el.relatoInput && !el.relatoInput.value.trim()) {
-
     loadSampleComplainantData(true);
-
     el.relatoInput.value = CONFIG.EXAMPLES[0];
-
     updateCharCount();
-
-    setTimeout(() => {
-
-      handleAnalyze();
-
-    }, 400);
-
   }
+
+  // Garantizar que la interfaz cargue siempre desde el tope absoluto (y=0)
+  window.scrollTo(0, 0);
+  document.querySelectorAll('.panel__body').forEach((p) => { p.scrollTop = 0; });
+  hideError();
+  setLoading(false);
 
 
 
