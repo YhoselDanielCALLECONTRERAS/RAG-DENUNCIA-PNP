@@ -738,6 +738,9 @@
   padding: 6px 14px 0;
   background: #FFFFFF;
   border-bottom: 1px solid var(--color-border);
+  position: sticky;
+  top: calc(var(--navbar-height) + 52px);
+  z-index: 85;
 }
 
 .panel-tab-btn {
@@ -772,8 +775,7 @@
 
 .acta-view-wrapper {
   padding: 16px;
-  overflow-y: auto;
-  max-height: calc(100vh - 170px);
+  overflow: visible;
 }
 
 .acta-sheet {

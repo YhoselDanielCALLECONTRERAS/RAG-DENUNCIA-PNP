@@ -84,6 +84,11 @@ html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   scroll-behavior: smooth;
+  height: 100%;
+}
+
+*, *::before, *::after {
+  box-sizing: inherit;
 }
 
 body {
@@ -91,9 +96,36 @@ body {
   background: var(--color-bg);
   color: var(--color-text-primary);
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto; /* Permite scroll vertical global sin perder nada */
+}
+
+/* Scrollbars visibles, elegantes y con diseño institucional PNP (#06B6D4) */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #06B6D4 #0F172A;
+}
+
+::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0F172A;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #06B6D4;
+  border-radius: 4px;
+  border: 2px solid #0F172A;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #22D3EE;
 }
 
 /* ── 3. Navbar ─────────────────────────────────────────────────────────── */
@@ -212,9 +244,9 @@ body {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0;
-  flex: 1;
-  overflow: hidden;
-  height: calc(100vh - var(--navbar-height) - var(--metrics-height));
+  flex: 1 0 auto;
+  min-height: calc(100vh - var(--navbar-height) - var(--metrics-height));
+  height: auto;
 }
 
 /* ── 5. Panels ──────────────────────────────────────────────────────────── */
@@ -222,8 +254,8 @@ body {
   display: flex;
   flex-direction: column;
   background: var(--color-bg-panel);
-  overflow: hidden;
   position: relative;
+  min-height: 100%;
 }
 
 .panel--input {
@@ -238,6 +270,9 @@ body {
   background: var(--color-primary);
   border-bottom: 1px solid rgba(6,182,212,0.15);
   flex-shrink: 0;
+  position: sticky;
+  top: var(--navbar-height);
+  z-index: 90;
 }
 
 .panel__header-left {
@@ -279,17 +314,12 @@ body {
 
 .panel__body {
   flex: 1;
-  overflow-y: auto;
   padding: var(--space-6);
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
+  overflow-y: visible;
 }
-
-.panel__body::-webkit-scrollbar { width: 5px; }
-.panel__body::-webkit-scrollbar-track { background: transparent; }
-.panel__body::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 10px; }
-.panel__body::-webkit-scrollbar-thumb:hover { background: var(--color-text-muted); }
 
 /* ── 6. Quick Examples ───────────────────────────────────────────────────── */
 .quick-examples {
@@ -1076,11 +1106,11 @@ body {
 }
 
 /* ── 18. Responsive (tablet breakpoint) ─────────────────────────────────── */
-@media (max-width: 900px) {
+@media (max-width: 960px) {
   .workspace {
     grid-template-columns: 1fr;
     height: auto;
-    overflow-y: auto;
+    overflow-y: visible;
   }
 
   .panel--input {
@@ -1088,7 +1118,7 @@ body {
     border-bottom: 1px solid var(--color-border);
   }
 
-  body { overflow: auto; }
+  body { overflow-y: auto; }
 
   .navbar__info:nth-child(n+4) { display: none; }
 
